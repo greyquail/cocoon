@@ -1,9 +1,87 @@
-let scene, camera, renderer, ball, platforms = [], obstacles = [], score = 0;
+let scene, camera, renderer, ball, platforms = [], stars = [], score = 0;
 let moveLeft = false, moveRight = false, jump = false, isOnGround = true;
 let ballSpeed = 0.2, ballJumpSpeed = 0.3, gravity = 0.02;
 let ballVelocityY = 0;
 
-// Responsive controls
+function init() {
+    // Scene
+    scene = new THREE.Scene();
+
+    // Background
+    const loader = new THREE.TextureLoader();
+    loader.load('https://example.com/origami-background.jpg', function (texture) {
+        scene.background = texture;
+    });
+
+    // Camera
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 10;
+    camera.position.y = 2;
+
+    // Renderer
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('gameCanvas').appendChild(renderer.domElement);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(10, 10, 10);
+    scene.add(directionalLight);
+
+    // Ball (Player) - Origami Style
+    const ballGeometry = new THREE.IcosahedronGeometry(0.5, 0);
+    const ballMaterial = new THREE.MeshStandardMaterial({ color: 0xff6347, flatShading: true });
+    ball = new THREE.Mesh(ballGeometry, ballMaterial);
+    ball.position.y = 0.5;
+    scene.add(ball);
+
+    // Create Platforms
+    createPlatforms();
+
+    // Create Stars
+    createStars();
+
+    // Init Controls
+    initControls();
+
+    // Start the game loop
+    animate();
+}
+
+function createPlatforms() {
+    const platformGeometry = new THREE.BoxGeometry(3, 0.2, 3);
+    const platformMaterial = new THREE.MeshStandardMaterial({ color: 0x4caf50, flatShading: true });
+
+    for (let i = 0; i < 10; i++) {
+        const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+        platform.position.y = Math.random() * 2 + 1;
+        platform.position.x = (Math.random() - 0.5) * 20;
+        platform.position.z = (Math.random() - 0.5) * 20;
+        platform.castShadow = true;
+        platform.receiveShadow = true;
+        scene.add(platform);
+        platforms.push(platform);
+    }
+}
+
+function createStars() {
+    const starGeometry = new THREE.OctahedronGeometry(0.2, 0);
+    const starMaterial = new THREE.MeshStandardMaterial({ color: 0xffd700, flatShading: true });
+
+    for (let i = 0; i < 5; i++) {
+        const star = new THREE.Mesh(starGeometry, starMaterial);
+        star.position.y = Math.random() * 3 + 1;
+        star.position.x = (Math.random() - 0.5) * 20;
+        star.position.z = (Math.random() - 0.5) * 20;
+        star.rotation.y = Math.random() * Math.PI;
+        scene.add(star);
+        stars.push(star);
+    }
+}
+
 function initControls() {
     document.addEventListener('keydown', onDocumentKeyDown, false);
     document.addEventListener('keyup', onDocumentKeyUp, false);
@@ -24,72 +102,6 @@ function initControls() {
         moveLeft = false;
         moveRight = false;
     });
-}
-
-function init() {
-    // Scene
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xe0f7fa);
-
-    // Camera
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 8;
-    camera.position.y = 2;
-
-    // Renderer
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.getElementById('gameCanvas').appendChild(renderer.domElement);
-
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-    scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(10, 10, 10);
-    scene.add(directionalLight);
-
-    // Ball (Player)
-    const ballGeometry = new THREE.SphereGeometry(0.5, 32, 32);
-    const ballMaterial = new THREE.MeshStandardMaterial({ color: 0xff4081 });
-    ball = new THREE.Mesh(ballGeometry, ballMaterial);
-    ball.position.y = 0.5;
-    scene.add(ball);
-
-    // Create Ground & Platforms
-    createGround();
-    createPlatforms();
-
-    // Init Controls
-    initControls();
-
-    // Start the game loop
-    animate();
-}
-
-function createGround() {
-    const groundGeometry = new THREE.PlaneGeometry(100, 100);
-    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x80deea });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = 0;
-    scene.add(ground);
-}
-
-function createPlatforms() {
-    const platformGeometry = new THREE.BoxGeometry(3, 0.2, 3);
-    const platformMaterial = new THREE.MeshStandardMaterial({ color: 0x7b1fa2 });
-
-    for (let i = 0; i < 10; i++) {
-        const platform = new THREE.Mesh(platformGeometry, platformMaterial);
-        platform.position.y = Math.random() * 2 + 1;
-        platform.position.x = (Math.random() - 0.5) * 20;
-        platform.position.z = (Math.random() - 0.5) * 20;
-        platform.castShadow = true;
-        platform.receiveShadow = true;
-        scene.add(platform);
-        platforms.push(platform);
-    }
 }
 
 function onDocumentKeyDown(event) {
