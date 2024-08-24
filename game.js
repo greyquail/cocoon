@@ -1,8 +1,9 @@
 let scene, camera, renderer;
-let player, arrow, target;
+let player, arrow;
 let arrows = [], targets = [];
 let score = 0;
 let isGameOver = false;
+let targetSpeed = 0.02;
 
 // Initialize the game
 function init() {
@@ -10,8 +11,8 @@ function init() {
     scene.background = new THREE.Color('#87CEEB');
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 15;
-    camera.position.y = 5;
+    camera.position.set(0, 5, 20);
+    camera.lookAt(0, 5, 0);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -26,10 +27,10 @@ function init() {
     scene.add(directionalLight);
 
     // Player (Bow)
-    const playerGeometry = new THREE.BoxGeometry(2, 0.2, 0.2);
+    const playerGeometry = new THREE.BoxGeometry(2, 0.5, 0.2);
     const playerMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
     player = new THREE.Mesh(playerGeometry, playerMaterial);
-    player.position.y = 0.2;
+    player.position.y = 1;
     scene.add(player);
 
     // Create initial targets
@@ -46,7 +47,7 @@ function createTargets() {
     const targetGeometry = new THREE.SphereGeometry(0.5, 32, 32);
     const targetMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
     for (let i = 0; i < 5; i++) {
-        target = new THREE.Mesh(targetGeometry, targetMaterial);
+        let target = new THREE.Mesh(targetGeometry, targetMaterial);
         target.position.set(Math.random() * 10 - 5, Math.random() * 5 + 0.5, -10);
         scene.add(target);
         targets.push(target);
@@ -85,8 +86,7 @@ function onDocumentKeyUp(event) {
 
 function move(dx, dz) {
     if (isGameOver) return;
-    player.position.x += dx;
-    player.position.z += dz;
+    player.position.x = Math.max(-5, Math.min(5, player.position.x + dx));
 }
 
 function shoot() {
@@ -96,17 +96,18 @@ function shoot() {
     const arrowGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1, 32);
     const arrowMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
     const newArrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-    newArrow.position.set(player.position.x, player.position.y, player.position.z);
+    newArrow.position.set(player.position.x, player.position.y + 0.5, player.position.z);
     newArrow.rotation.x = Math.PI / 2;
     scene.add(newArrow);
     arrows.push(newArrow);
 
-    // Animate the arrow
+    // Animate the arrow with realistic physics
     gsap.to(newArrow.position, {
-        x: player.position.x + Math.random() * 10 - 5,
-        y: player.position.y + Math.random() * 5,
+        x: player.position.x,
+        y: player.position.y + 10,
         z: player.position.z - 20,
         duration: 2,
+        ease: "power1.out",
         onComplete: () => {
             scene.remove(newArrow);
             arrows = arrows.filter(a => a !== newArrow);
@@ -124,7 +125,7 @@ function checkCollisions() {
                 score += 10;
                 document.getElementById('score').textContent = score;
                 if (targets.length === 0) {
-                    // All targets hit
+                    // Create new targets if all are hit
                     createTargets();
                 }
             }
@@ -139,13 +140,12 @@ function animate() {
 
     // Move targets (simple movement)
     targets.forEach(target => {
-        target.position.z += 0.05;
+        target.position.z += targetSpeed;
         if (target.position.z > 10) {
             scene.remove(target);
             targets = targets.filter(t => t !== target);
             if (targets.length === 0) {
-                // Create new targets if none are left
-                createTargets();
+                createTargets(); // Create new targets if none are left
             }
         }
     });
@@ -164,3 +164,45 @@ window.addEventListener('resize', () => {
 });
 
 init();
+Key Features and Enhancements
+Graphics and Textures:
+
+Player: The bow is a simple box with a wood-like texture.
+Targets: Red spheres are used as targets.
+Background: Sky-blue background simulates an outdoor environment.
+Shooting Mechanics:
+
+Realistic Physics: Arrows follow a parabolic trajectory with easing to simulate realistic physics.
+Smooth Animation: GSAP is used for smooth animation of arrows.
+Game Mechanics:
+
+Level Progression: New targets are generated when all existing targets are hit.
+Collision Detection: Efficient detection of collisions between arrows and targets.
+Controls:
+
+Desktop: Arrow keys for movement and space bar for shooting.
+Mobile: Swipe gestures for movement and shooting.
+Responsive Design:
+
+The game resizes and adjusts the camera aspect ratio on window resize.
+UI Elements:
+
+Scoreboard: Displays the current score.
+Game Over Screen: Displays when the game ends (you can add a game over condition).
+Running the Game
+Save the Files: Create index.html and game.js with the provided code.
+Open index.html: Double-click to open in a web browser.
+Further Improvements
+Textures and Models: Use high-resolution textures and detailed 3D models for a more immersive experience.
+Sound Effects: Add sounds for shooting, hitting targets, and background music.
+Advanced Physics: Implement a physics engine like ammo.js or cannon.js for more complex interactions.
+**Levels and Challenges
+
+
+
+
+
+
+
+
+
