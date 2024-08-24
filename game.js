@@ -1,48 +1,99 @@
-let scene, camera, renderer, player, obstacles = [];
-let moveLeft = false, moveRight = false, isJumping = false, isFalling = false;
-let speed = 0.1, jumpSpeed = 0.2, gravity = 0.01;
-let playerVelocityY = 0;
+let scene, camera, renderer, ball, platforms = [], obstacles = [], score = 0;
+let moveLeft = false, moveRight = false, jump = false, isOnGround = true;
+let ballSpeed = 0.2, ballJumpSpeed = 0.3, gravity = 0.02;
+let ballVelocityY = 0;
+
+// Responsive controls
+function initControls() {
+    document.addEventListener('keydown', onDocumentKeyDown, false);
+    document.addEventListener('keyup', onDocumentKeyUp, false);
+
+    // Touch controls for mobile
+    const hammer = new Hammer(document.getElementById('gameCanvas'));
+    hammer.get('swipe').set({ direction: Hammer.DIRECTION_ALL });
+    hammer.on('swipeleft', () => moveLeft = true);
+    hammer.on('swiperight', () => moveRight = true);
+    hammer.on('swipeup', () => {
+        if (isOnGround) {
+            jump = true;
+            isOnGround = false;
+            ballVelocityY = ballJumpSpeed;
+        }
+    });
+    hammer.on('swipeend', () => {
+        moveLeft = false;
+        moveRight = false;
+    });
+}
 
 function init() {
     // Scene
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
+    scene.background = new THREE.Color(0xe0f7fa);
 
     // Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.z = 5;
-    camera.position.y = 1;
+    camera.position.z = 8;
+    camera.position.y = 2;
 
     // Renderer
-    renderer = new THREE.WebGLRenderer();
+    renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('gameCanvas').appendChild(renderer.domElement);
 
-    // Player (a simple cube)
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({color: 0x00ff00});
-    player = new THREE.Mesh(geometry, material);
-    player.position.y = 0.5;
-    scene.add(player);
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
 
-    // Create the ground
-    const groundGeometry = new THREE.PlaneGeometry(100, 10);
-    const groundMaterial = new THREE.MeshBasicMaterial({color: 0xffffff, side: THREE.DoubleSide});
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = Math.PI / 2;
-    ground.position.y = 0;
-    scene.add(ground);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(10, 10, 10);
+    scene.add(directionalLight);
 
-    // Listen to keyboard events
-    document.addEventListener('keydown', onDocumentKeyDown, false);
-    document.addEventListener('keyup', onDocumentKeyUp, false);
+    // Ball (Player)
+    const ballGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+    const ballMaterial = new THREE.MeshStandardMaterial({ color: 0xff4081 });
+    ball = new THREE.Mesh(ballGeometry, ballMaterial);
+    ball.position.y = 0.5;
+    scene.add(ball);
+
+    // Create Ground & Platforms
+    createGround();
+    createPlatforms();
+
+    // Init Controls
+    initControls();
 
     // Start the game loop
     animate();
 }
 
+function createGround() {
+    const groundGeometry = new THREE.PlaneGeometry(100, 100);
+    const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x80deea });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = 0;
+    scene.add(ground);
+}
+
+function createPlatforms() {
+    const platformGeometry = new THREE.BoxGeometry(3, 0.2, 3);
+    const platformMaterial = new THREE.MeshStandardMaterial({ color: 0x7b1fa2 });
+
+    for (let i = 0; i < 10; i++) {
+        const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+        platform.position.y = Math.random() * 2 + 1;
+        platform.position.x = (Math.random() - 0.5) * 20;
+        platform.position.z = (Math.random() - 0.5) * 20;
+        platform.castShadow = true;
+        platform.receiveShadow = true;
+        scene.add(platform);
+        platforms.push(platform);
+    }
+}
+
 function onDocumentKeyDown(event) {
-    switch(event.keyCode) {
+    switch (event.keyCode) {
         case 37: // Left arrow key
             moveLeft = true;
             break;
@@ -50,16 +101,17 @@ function onDocumentKeyDown(event) {
             moveRight = true;
             break;
         case 32: // Space bar (Jump)
-            if (!isJumping && !isFalling) {
-                isJumping = true;
-                playerVelocityY = jumpSpeed;
+            if (isOnGround) {
+                jump = true;
+                isOnGround = false;
+                ballVelocityY = ballJumpSpeed;
             }
             break;
     }
 }
 
 function onDocumentKeyUp(event) {
-    switch(event.keyCode) {
+    switch (event.keyCode) {
         case 37: // Left arrow key
             moveLeft = false;
             break;
@@ -72,51 +124,28 @@ function onDocumentKeyUp(event) {
 function animate() {
     requestAnimationFrame(animate);
 
-    // Move player left or right
-    if (moveLeft) player.position.x -= speed;
-    if (moveRight) player.position.x += speed;
+    // Move the ball left or right
+    if (moveLeft) ball.position.x -= ballSpeed;
+    if (moveRight) ball.position.x += ballSpeed;
 
-    // Jumping logic
-    if (isJumping) {
-        player.position.y += playerVelocityY;
-        playerVelocityY -= gravity;
-        if (player.position.y <= 0.5) {
-            player.position.y = 0.5;
-            isJumping = false;
-            isFalling = false;
+    // Ball jumping logic
+    if (jump) {
+        ball.position.y += ballVelocityY;
+        ballVelocityY -= gravity;
+
+        if (ball.position.y <= 0.5) {
+            ball.position.y = 0.5;
+            jump = false;
+            isOnGround = true;
         }
     }
 
-    // Add obstacles
-    if (Math.random() < 0.02) {
-        addObstacle();
-    }
-
-    // Move obstacles and check for collision
-    for (let i = 0; i < obstacles.length; i++) {
-        obstacles[i].position.z += speed;
-        if (obstacles[i].position.z > 5) {
-            scene.remove(obstacles[i]);
-            obstacles.splice(i, 1);
-            i--;
-        } else if (obstacles[i].position.distanceTo(player.position) < 1) {
-            alert('Game Over! Refresh to restart.');
-            return;
-        }
-    }
+    // Camera follows the ball
+    camera.position.x = ball.position.x;
+    camera.position.z = ball.position.z + 8;
+    camera.position.y = ball.position.y + 2;
 
     renderer.render(scene, camera);
-}
-
-function addObstacle() {
-    const obstacleGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const obstacleMaterial = new THREE.MeshBasicMaterial({color: 0xff0000});
-    const obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
-    obstacle.position.x = (Math.random() - 0.5) * 10;
-    obstacle.position.y = 0.5;
-    obstacle.position.z = -10;
-    obstacles.push(obstacle);
-    scene.add(obstacle);
 }
 
 init();
