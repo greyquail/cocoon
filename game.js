@@ -2,19 +2,17 @@ let scene, camera, renderer;
 let player, arrow, target;
 let arrows = [], targets = [];
 let score = 0;
-let shooting = false;
+let isGameOver = false;
 
+// Initialize the game
 function init() {
-    // Scene
     scene = new THREE.Scene();
     scene.background = new THREE.Color('#87CEEB');
 
-    // Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.z = 15;
     camera.position.y = 5;
 
-    // Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('gameCanvas').appendChild(renderer.domElement);
@@ -34,25 +32,25 @@ function init() {
     player.position.y = 0.2;
     scene.add(player);
 
-    // Target
-    createTarget();
+    // Create initial targets
+    createTargets();
 
-    // Controls
+    // Setup controls
     initControls();
 
-    // Start the game loop
+    // Start game loop
     animate();
 }
 
-function createTarget() {
+function createTargets() {
     const targetGeometry = new THREE.SphereGeometry(0.5, 32, 32);
     const targetMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-    target = new THREE.Mesh(targetGeometry, targetMaterial);
-    target.position.x = Math.random() * 10 - 5;
-    target.position.y = Math.random() * 5 + 0.5;
-    target.position.z = -10;
-    scene.add(target);
-    targets.push(target);
+    for (let i = 0; i < 5; i++) {
+        target = new THREE.Mesh(targetGeometry, targetMaterial);
+        target.position.set(Math.random() * 10 - 5, Math.random() * 5 + 0.5, -10);
+        scene.add(target);
+        targets.push(target);
+    }
 }
 
 function initControls() {
@@ -67,6 +65,7 @@ function initControls() {
 }
 
 function onDocumentKeyDown(event) {
+    if (isGameOver) return;
     switch (event.keyCode) {
         case 37: // Left arrow
             move(-1, 0);
@@ -85,13 +84,13 @@ function onDocumentKeyUp(event) {
 }
 
 function move(dx, dz) {
+    if (isGameOver) return;
     player.position.x += dx;
     player.position.z += dz;
 }
 
 function shoot() {
-    if (shooting) return;
-    shooting = true;
+    if (isGameOver) return;
 
     // Create an arrow
     const arrowGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1, 32);
@@ -111,7 +110,6 @@ function shoot() {
         onComplete: () => {
             scene.remove(newArrow);
             arrows = arrows.filter(a => a !== newArrow);
-            shooting = false;
         }
     });
 }
@@ -119,19 +117,24 @@ function shoot() {
 function checkCollisions() {
     arrows.forEach(arrow => {
         targets.forEach(target => {
-            if (arrow.position.distanceTo(target.position) < 1) {
+            if (arrow.position.distanceTo(target.position) < 0.5) {
                 // Hit
                 scene.remove(target);
                 targets = targets.filter(t => t !== target);
                 score += 10;
                 document.getElementById('score').textContent = score;
-                createTarget(); // Create a new target
+                if (targets.length === 0) {
+                    // All targets hit
+                    createTargets();
+                }
             }
         });
     });
 }
 
 function animate() {
+    if (isGameOver) return;
+
     requestAnimationFrame(animate);
 
     // Move targets (simple movement)
@@ -140,7 +143,10 @@ function animate() {
         if (target.position.z > 10) {
             scene.remove(target);
             targets = targets.filter(t => t !== target);
-            createTarget(); // Create a new target if one is removed
+            if (targets.length === 0) {
+                // Create new targets if none are left
+                createTargets();
+            }
         }
     });
 
@@ -149,5 +155,12 @@ function animate() {
 
     renderer.render(scene, camera);
 }
+
+// Handle resizing
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 init();
